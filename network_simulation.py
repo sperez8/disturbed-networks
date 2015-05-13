@@ -21,11 +21,10 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib_venn import venn3, venn3_circles, venn2
 from prettyplotlib import brewer2mpl
-import hive as Hive
 
-_cur_dir = os.path.dirname(os.path.realpath(__file__))
-_root_dir = os.path.dirname(_cur_dir)
-sys.path.insert(0, _root_dir)
+# _cur_dir = os.path.dirname(os.path.realpath(__file__))
+# _root_dir = os.path.dirname(_cur_dir)
+# sys.path.insert(0, _root_dir)
 
 import networkx as nx
 from make_network import import_graph
@@ -55,10 +54,15 @@ SMALL_FIG_HEIGHT = 5
 
 TITLE_FONT = 20
 
-OM_COLORS = {"OM0":"#238b45",
-			"OM1":"#fd8d3c",
-			"OM2":"#e31a1c",
-			"OM3":"#800026"}
+# OM_COLORS = {"OM0":"#238b45",
+# 			"OM1":"#fd8d3c",
+# 			"OM2":"#e31a1c",
+# 			"OM3":"#800026"}
+
+OM_COLORS = {"All":"black",
+			"Mod1":"#01665e",
+			"Mod2":"#80cdc1",
+			"Mod3":"#c7eae5"}
 
 STRUCTURE_METRICS = [nm.number_of_nodes, 
 					nm.number_of_edges,
@@ -111,7 +115,7 @@ MODULE_OTU_METRICS = [nm.correlation_of_degree_and_depth,
 
 
 
-def make_graph(nodeFile, edgeFile,edgetype):
+def get_graph(nodeFile, edgeFile,edgetype):
 	'''imports the node and edge file and makes the graph'''
 	G = import_graph(nodeFile,edgeFile,edgetype,FILTER_NON_OTUS)
 	return G
@@ -122,9 +126,9 @@ def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LC=
 	for netName in networks:
 		nodeFile = os.path.join(path,netName+'_nodes.txt')
 		edgeFile = os.path.join(path,netName+'_edges.txt')
-		G = make_graph(nodeFile,edgeFile,edgetype)
+		G = get_graph(nodeFile,edgeFile,edgetype)
 		if LC:
-			G = nx.connected_component_subgraphs(G)[0]
+			G = list(nx.connected_component_subgraphs(G))[0]
 			print "keeping only connected component"
 		graphs[netName] = G
 		print 'Made the networkx graph {0} with N = {1}, E = {2}.'.format(netName,G.number_of_nodes(),G.number_of_edges())
@@ -135,7 +139,7 @@ def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LC=
 			N = nx.number_of_nodes(G)
 			H = nx.gnm_random_graph(N,M,seed=RANDSEED)
 			if LC:
-				H = nx.connected_component_subgraphs()[0]
+				H = list(nx.connected_component_subgraphs())[0]
 			graphs[RAND_NAME+netName] = H
 		if add_scalefree:
 			N = nx.number_of_nodes(G)
@@ -143,7 +147,7 @@ def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LC=
 			UH = H.to_undirected()
 			UH = nx.Graph(UH)
 			if LC:
-				UH = nx.connected_component_subgraphs(UH)[0]			
+				UH = list(nx.connected_component_subgraphs(UH))[0]			
 			graphs[SCALE_NAME+netName] = UH
 	return graphs
 
@@ -1227,7 +1231,7 @@ def random_attack(G,fraction):
 	as nodes are removed randomly'''
 	lc_sizes = [] #relative size of big component
 	sc_sizes = [] #avg size of smaller components
-	startSize = len(nx.connected_components(G)[0])
+	startSize = len(list(nx.connected_components(G))[0])
 	lc_sizes.append(1)
 	sc_sizes.append(1)
 	H = G.copy()
@@ -1239,7 +1243,7 @@ def random_attack(G,fraction):
 
 	for n in nodes[:removal]:
 		H.remove_node(n)
-		components = nx.connected_components(H)
+		components = list(nx.connected_components(H))
 		lc_sizes.append(len(components[0])/float(startSize)) #measure the relative size change
 		if len(components)>1:
 			sc_sizes.append(np.mean([len(c) for c in components[1:]]))
@@ -1256,7 +1260,7 @@ def target_attack(G, measure,fraction):
 	'''
 	lc_sizes = [] #relative size of big component
 	sc_sizes = [] #avg size of smaller components
-	startSize = len(nx.connected_components(G)[0])
+	startSize = len(list(nx.connected_components(G))[0])
 	lc_sizes.append(1)
 	sc_sizes.append(1)
 	H = G.copy()
@@ -1269,7 +1273,7 @@ def target_attack(G, measure,fraction):
 
 	for n in zip(*values)[0][:removal]:
 		H.remove_node(n)
-		components = nx.connected_components(H)
+		components = list(nx.connected_components(H))
 		lc_sizes.append(len(components[0])/float(startSize))  #measure the relative size change
 		if len(components)>1:
 			sc_sizes.append(np.mean([len(c) for c in components[1:]]))
@@ -1560,7 +1564,6 @@ def multi_plot_robustness_by_measure(multidata,figurePath,figureFile,rowLabels,t
 
 def make_js_files(netpath, newnetpath, ecozone, treatment, featurePath, featureFile, edgetype):
     '''make a network in js format'''
-    hive = Hive.Hive(debug=False)
 
     featureTableFile = os.path.join(featurePath,featureFile+'_{0}_{1}_{2}.txt'.format(edgetype,ecozone,treatment))
     #featureTable = np.loadtxt(featureTableFile,delimiter='\t', dtype='S1000')

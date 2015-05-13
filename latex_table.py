@@ -89,7 +89,7 @@ def main(*argv):
 		sample_sequence(net_path, networks, os.path.join(PATH,INPUT_FOLDER),INPUT_FILE_END)
 
 	if args.convert:
-		convert(args.tabfile,header=args.header,rows=args.rowheader)
+		convert_file(args.tabfile,header=args.header,rows=args.rowheader)
 
 if __name__ == "__main__":
 	main(*sys.argv[1:])

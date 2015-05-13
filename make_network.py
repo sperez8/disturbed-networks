@@ -10,27 +10,14 @@ import sys
 import os
 import argparse
 
-#need a specific version of networkx for read_gexf to work
-#import pkg_resources
-#pkg_resources.require("networkx==1.7")
-
-#comment these lines when converting a gexf?
-_cur_dir = os.path.dirname(os.path.realpath(__file__))
-_root_dir = os.path.dirname(_cur_dir)
-sys.path.insert(0, _root_dir)
+# #need a specific version of networkx for read_gexf to work
+# #import pkg_resources
+# #pkg_resources.require("networkx==1.7")
 
 import networkx as nx
-
-
-import networkx
-
-#library imports
-import sys
-import os
+import string
 import numpy as np
 from math import pi
-import hive as Hive
-from hive_utilities import *
 
 def import_gexf(gexfFile):
     #parse graphml file
@@ -42,14 +29,13 @@ def import_graphml(graphmlFile):
     G = nx.read_graphml(graphmlFile)
     return G
 
-def import_graph(nodeFile, edgeFile, edgetype, filterNonOtus):
-    '''make a networkx graph from a csv or tsv using methods from the hive class'''
-    hive = Hive.Hive(debug=False)
-    hive.get_nodes(nodeFile)
-    hive.get_edges(edgeFile)
+def import_graph(nodeFile, edgeFile, edgetype, filterNonOtus, filterEdges = True):
+    '''make a networkx graph from a csv or tsv'''
     
-    sources, targets, nodes, nodeProperties, edgeProperties = hive.sources, hive.targets, hive.nodes, hive.nodeProperties, hive.edgeProperties
-    G = make_graph(sources, targets, nodes)
+    nodes, nodeProperties = get_nodes(nodeFile)
+    sources, targets, edgeProperties = get_edges(edgeFile)
+    
+    G = make_graph(sources, targets, nodes, filterEdges)
     for i,n in enumerate(nodes):
         for p,v in nodeProperties.iteritems():
             G.node[n][p] = v[i]
@@ -59,7 +45,7 @@ def import_graph(nodeFile, edgeFile, edgetype, filterNonOtus):
             G.remove_edge(e[0],e[1])
         elif edgetype == 'neg' and 'copresence' in edgeProperties['interactionType'][i]:
             G.remove_edge(e[0],e[1])
-        else:
+        elif (filterEdges and e[0] in nodes and e[1] in nodes) or (not filterEdges):
             for p,v in edgeProperties.iteritems():
                 G[e[0]][e[1]][p] = v[i]
 
@@ -73,12 +59,6 @@ def import_graph(nodeFile, edgeFile, edgetype, filterNonOtus):
             G.remove_node(n)
 
     return G
-
-def measure_all(G):
-    '''measure all interesting global network measures'''
-    measure = {}
-    
-    return measures
 
 def convert_gexf(gexfFile):
     G = import_gexf(gexfFile)
@@ -150,6 +130,167 @@ def convert_graph(G,fileName):
     print "writing edgefile", edgeFile
     return None
 
+def make_graph(sources, targets, nodes, filterEdges= True):
+    '''Makes a graph using the networkx package Graph instance'''
+    G = nx.Graph()
+    G.add_edges_from(zipper(sources,targets))
+    if filterEdges:
+        for n in G.nodes():
+            if n not in nodes:
+                G.remove_node(n)
+    return G
+
+
+def get_nodes(inputFile,removeNA=None):
+    '''gets nodes and their properties from csv file'''
+    
+    delimiter = get_delimiter(inputFile)
+
+    data = np.genfromtxt(inputFile, delimiter=delimiter, dtype='str', filling_values = 'None')
+    
+    #get properties and format as strings
+    properties = data[0,1:]
+    properties = format_properties(properties)
+    
+    if removeNA:
+        colName = nx.betweenness_centrality.__name__.replace('_',' ').capitalize()
+        col = np.where(data[0,:]==colName)[0][0]
+        #remove first row with column names
+        data = data[1:,]
+        data = data[np.where(data[:,col]!=removeNA)]
+    else:
+        #remove first row with column names
+        data = data[1:,]
+
+    #get all the node data
+    nodes = list(data[:,0])
+    
+    #take note of number of nodes
+    totalNodes = len(nodes)
+    
+    #transform node properties into the numerical types if possible
+    nodeProperties = {}
+
+    for i, column in enumerate(data[:,1:].T):
+        values = convert_type(list(column))
+        nodeProperties[properties[i]] = values
+    nodeProperties = nodeProperties
+
+    return nodes, nodeProperties
+
+
+def get_edges(inputFile):
+    '''gets edges and their properties from csv file'''
+    
+    delimiter = get_delimiter(inputFile)
+    data = np.genfromtxt(inputFile, delimiter=delimiter, dtype='str', filling_values = 'None')
+    
+    #get properties and format as strings
+    properties = data[0,2:]
+    properties = format_properties(properties)
+    
+    #remove first row with column names
+    data = data[1:,]
+    
+    #get all the edge data
+    sources = list(data[:,0])        
+    targets = list(data[:,1])
+    
+    #take note of number of edges:
+    totalEdges = len(sources)
+
+    #transform edge properties into the numerical types if possible
+    edgeProperties = {}
+
+    for i, column in enumerate(data[:,2:].T):
+        values = convert_type(list(column))
+        edgeProperties[properties[i]] = values
+    edgeProperties = edgeProperties
+    
+    #store the name of the edge properties
+    edgePropertyList = edgeProperties.keys()
+
+    return sources, targets, edgeProperties
+
+def convert_type(data):
+    def num(s):
+        '''convert list of strings to corresponding int or float type'''
+        try:
+            return int(d)
+        except ValueError:
+            return float(d)
+    
+    try:
+        convertedData = [num(d) for d in data]
+        return convertedData
+    except ValueError:
+        return data
+
+def get_delimiter(inputFile):
+    '''detect if input file is a tab or comma delimited file
+        and return delimiter.'''
+    
+    ext = os.path.splitext(os.path.basename(inputFile))[1]
+    
+    if 'tab' in ext or 'tsv' in ext:
+        return '\t'
+    elif 'csv' in ext:
+        return ','
+    elif 'txt' in ext:
+        #detects delimiter by counting the number of tabs and commas in the first line
+        f = open(inputFile, 'r')
+        first = f.read()
+        if first.count(',') > first.count('\t'):
+            return ','
+        elif first.count(',') < first.count('\t'):
+            return '\t'
+        else:
+            print "Couldn't detect a valid file extension: ", inputFile
+            return ','
+    else:
+        print "Couldn't detect a valid file extension: ", inputFile
+        return ','
+
+
+def format_properties(properties, debug = False):
+    '''takes a list of property names and removes all punctuation and numbers'''
+    
+    numbers = {1:'one', 2:'two', 3:'three', 4:'four', 5:'five', 6:'six', 7:'seven', 8:'eight', 9:'nine', 10:'ten'}
+    
+    def convert_word(word):
+        '''remove punctuation and numbers from a word'''
+        w = word
+        word = ''.join(word.split()) #removes all whitespace (tabs, newlines, spaces...)
+        for c in string.punctuation + string.digits:
+            word = word.replace(c,'')
+        if w != word:
+            if debug:
+                print "The property \'{0}\' contains spaces, punctuation or digits and has been renamed '{1}'".format(w,word)
+        return word
+         
+    newProperties = []
+    i = 1
+    for prop in properties:
+        newProp = convert_word(prop)
+        if not newProp:
+            #if property isn't named, we give it one
+            newProperties.append('unNamedProperty' + numbers[i] + '')
+            i += 1
+        elif newProp in newProperties:
+            newProperties.append(newProp + 'second')
+        else:
+            newProperties.append(newProp)
+            
+    return newProperties
+
+def zipper(*args):
+    '''a revamped version of zip() method that checks that lists
+    to be zipped are the same length'''
+    for i,item in enumerate(args):
+        if len(item) != len(args[0]):
+            raise ValueError('The lists to be zipped aren\'t the same length.')
+    
+    return zip(*args)
 
 def main(*argv):
     '''handles user input and runs plsa'''
@@ -163,8 +304,6 @@ def main(*argv):
         convert_graphml(args.input)
     if args.format=='gexf':
         convert_gexf(args.input)
-
-
 
 if __name__ == "__main__":
     main(*sys.argv[1:])

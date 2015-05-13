@@ -3,7 +3,6 @@ created  10/06/2014
 
 by sperez
 
-Contains functions used by hive class to measure things like network properties
 '''
 
 #library imports
@@ -12,7 +11,6 @@ import os
 import argparse
 import numpy as np
 from math import pi
-import hive as hive
 import copy
 import scipy.stats
 
@@ -199,7 +197,7 @@ EDGES = os.path.join(_root_dir, 'tests', 'test_edges_friends.txt')
 
 def main(*argv):
     '''handles user input and runs plsa'''
-    parser = argparse.ArgumentParser(description='This scripts produces an interactive hive panel.')
+    parser = argparse.ArgumentParser(description='This script creates a networkx graph.')
     parser.add_argument('-n', help='The node file', default = NODES)
     parser.add_argument('-e', help='The edge file', default = EDGES)
     args = parser.parse_args()

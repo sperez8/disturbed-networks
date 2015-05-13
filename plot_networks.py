@@ -18,8 +18,6 @@ else:
 
 FOLDER = 'by_treatment'
 WHOLE_FOLDER = 'by_zone'
-FIGURE_PATH = os.path.join(PATH,'plots')
-SAMPLES_FILE = os.path.join(PATH, 'Bacterialtags_info_edited.txt')
 
 INPUT_FOLDER = 'input'
 INPUT_FILE_END = '_BAC-filtered-lineages_final.txt'
@@ -27,19 +25,16 @@ INPUT_FILE_END = '_BAC-filtered-lineages_final.txt'
 INDVAL_FOLDER = 'indtables'
 INDVAL_FILE_END = '_indvals_combo_om_horizon.txt'
 
-FEATURE_PATH = os.path.join(PATH,'tables')
 FEATURE_FILE = 'feature_and_node_measures_table'
 FEATURES = ['SoilHorizon']
 BC_FEATURES = ['Betweenness centrality','SoilHorizon avg','SoilHorizon std','Abundance']
 MEASURES = [nx.betweenness_centrality, 
 			nx.degree_centrality,
 			nx.closeness_centrality,
-			nx.eigenvector_centrality_numpy,
+			#nx.eigenvector_centrality_numpy,
 			 ]
 PERCENT_BC_NODES = 0.1
 BC_MIN_VALUE = 0.005
-
-FOLDER_NEW_NETWORKS = os.path.join(PATH,'panels','data')
 
 TAX_LEVEL = 'phylum'
 
@@ -58,6 +53,7 @@ def main(*argv):
 	parser = argparse.ArgumentParser(description='This scripts analyzes co-occurrence networks')
 	parser.add_argument('-path', help='Path where the networks are', default = PATH)
 	parser.add_argument('-folder', help='Folder in path where the networks are', default = FOLDER)
+	parser.add_argument('-factors', nargs='*', help='Different types of each network', default = TREATMENTS)
 	parser.add_argument('-networks', nargs='*', help='Which network to use: SBS, IDF, etc.')
 	parser.add_argument('-simulate', help='Simulates node removal', action = 'store_true')
 	parser.add_argument('-calculate', help='Calculates networks properties', action = 'store_true')
@@ -104,11 +100,7 @@ def main(*argv):
 		parser.print_help()
 		sys.exit()
 
-	if args.wholenetwork:
-		treatments = None
-		args.folder = WHOLE_FOLDER
-	else:
-		treatments = TREATMENTS
+	factors = args.factors
 
 	edgetype = args.edgetype
 	net_path = os.path.join(args.path,args.folder)
@@ -116,41 +108,48 @@ def main(*argv):
 	if args.folder == 'by_zone':
 		networks = {('BAC_'+n if 'BAC_' not in n else n):[] for n in args.networks}
 	else:
-		networks = {('BAC_'+n if 'BAC_' not in n else n):treatments for n in args.networks}
+		networks = {('BAC_'+n if 'BAC_' not in n else n):factors for n in args.networks}
 
 	factor = float(args.factor)
+
+	folderNewPath = os.path.join(args.path,'panels','data')
+	figurePath = os.path.join(args.path,'plots')
+	samplesFile = os.path.join(args.path, 'Bacterialtags_info_edited.txt')
+	featurePath = os.path.join(args.path,'tables')
+
+
 	###depending on option specified, choose different things
 	if args.calculate:
 		print "\nCalculating structural properties on "+edgetype+" type of edges of networks:"
 		print ", ".join(networks), '\n'
-		filePath = os.path.join(FIGURE_PATH,'table_of_measures_'+'_'.join(args.networks)+'_'+edgetype+'.txt')
+		filePath = os.path.join(figurePath,'table_of_measures_'+'_'.join(args.networks)+'_'+edgetype+'.txt')
 		print filePath
-		network_structure(net_path,networks,filePath,edgetype, os.path.join(PATH,INPUT_FOLDER),INPUT_FILE_END, FEATURE_PATH, FEATURE_FILE)
+		network_structure(net_path,networks,filePath,edgetype, os.path.join(args.path,INPUT_FOLDER),INPUT_FILE_END, featurePath, FEATURE_FILE)
 
 	elif args.modules:
 		print "\nCalculating structural properties on "+edgetype+" type of edges of modules in networks:"
 		print ", ".join(networks), '\n'
-		filePath = os.path.join(FIGURE_PATH,'table_of_module_measures_'+'_'.join(args.networks)+'_'+edgetype+'_'+str(factor)+'.txt')
+		filePath = os.path.join(figurePath,'table_of_module_measures_'+'_'.join(args.networks)+'_'+edgetype+'_'+str(factor)+'.txt')
 		print filePath
-		module_structure(net_path,networks,filePath,edgetype, os.path.join(PATH,INPUT_FOLDER),INPUT_FILE_END, FEATURE_PATH, FEATURE_FILE, factor)
+		module_structure(net_path,networks,filePath,edgetype, os.path.join(args.path,INPUT_FOLDER),INPUT_FILE_END, featurePath, FEATURE_FILE, factor)
 
 	elif args.assess:
 		print "\nCalculating ecological metrics of sample collection for the following networks:"
 		print ", ".join(networks), '\n'
-		filePath = os.path.join(FIGURE_PATH,'ecological_measures_'+'_'.join(args.networks)+'.txt')
-		make_ecological_table(net_path,networks,filePath,edgetype,os.path.join(PATH,INPUT_FOLDER),INPUT_FILE_END)
+		filePath = os.path.join(figurePath,'ecological_measures_'+'_'.join(args.networks)+'.txt')
+		make_ecological_table(net_path,networks,filePath,edgetype,os.path.join(args.path,INPUT_FOLDER),INPUT_FILE_END)
 
 	elif args.maketable:
 		print "\nMaking OTU table with ecological metrics for the following networks:"
 		print ", ".join(networks), '\n'
-		make_OTU_feature_table(net_path, networks, os.path.join(PATH,INPUT_FOLDER),INPUT_FILE_END,os.path.join(PATH,INDVAL_FOLDER),INDVAL_FILE_END, SAMPLES_FILE, FEATURES, FEATURE_PATH, FEATURE_FILE,edgetype,factor)
+		make_OTU_feature_table(net_path, networks, os.path.join(args.path,INPUT_FOLDER),INPUT_FILE_END,os.path.join(args.path,INDVAL_FOLDER),INDVAL_FILE_END, samplesFile, FEATURES, featurePath, FEATURE_FILE,edgetype,factor)
 
 	elif args.distribution:
 		if DEGREE_SEQUENCE:
 			figureName = 'plot_distribution_'+'_'.join(args.networks)+'_'+edgetype+'_sequence'+'.png'
 		else:
 			figureName = 'plot_distribution_'+'_'.join(args.networks)+'_'+edgetype+'.png'
-		figurePath = os.path.join(FIGURE_PATH,figureName)
+		figurePath = os.path.join(figurePath,figureName)
 		print "\nPlotting the degree distribution on "+edgetype+" type of edges for networks ", ','.join(args.networks)
 		plot_degree_distribution_per_treatment(net_path, networks, figurePath, DEGREE_SEQUENCE, edgetype)
 
@@ -164,7 +163,7 @@ def main(*argv):
 			sys.exit()
 		print "\nPlotting "+level+" centrality for OTUs in the following networks with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
-		centrality_plot(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,level,percentNodes,bcMinValue)
+		centrality_plot(net_path,networks,figurePath,featurePath,FEATURE_FILE,level,percentNodes,bcMinValue)
 
 	elif args.vennplot:
 		edgetype = 'pos'
@@ -177,9 +176,9 @@ def main(*argv):
 		print "\nPlotting "+level+" venn diagram of central OTUs per ecozone with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
 		if level == "species":
-			plot_venn_otus_diagram(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,percentNodes,bcMinValue)
+			plot_venn_otus_diagram(net_path,networks,figurePath,featurePath,FEATURE_FILE,percentNodes,bcMinValue)
 		else:	
-			plot_venn_diagram(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,level,percentNodes,bcMinValue)
+			plot_venn_diagram(net_path,networks,figurePath,featurePath,FEATURE_FILE,level,percentNodes,bcMinValue)
 
 	elif args.taxarep:
 		edgetype = 'pos'
@@ -191,7 +190,7 @@ def main(*argv):
 			sys.exit()
 		print "\nCalculating representation of "+level+" in central OTUs per ecozone"
 		print ", ".join(networks), '\n'
-		calculate_taxonomic_representation(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,level,percentNodes,bcMinValue)
+		calculate_taxonomic_representation(net_path,networks,figurePath,featurePath,FEATURE_FILE,level,percentNodes,bcMinValue)
 
 	elif args.scatterplot:
 		edgetype = 'pos'
@@ -199,7 +198,7 @@ def main(*argv):
 		bcMinValue = float(args.bcmin)
 		print "\nPlotting scatterplot to compare central OTUs per ecozone with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
-		plot_scatter_bc(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,percentNodes,bcMinValue)
+		plot_scatter_bc(net_path,networks,figurePath,featurePath,FEATURE_FILE,percentNodes,bcMinValue)
 
 	elif args.plotcentralities:
 		edgetype = 'pos'
@@ -207,14 +206,14 @@ def main(*argv):
 		print "\nPlotting centrality measures per ecozone with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
 		measures = MEASURES
-		plot_diff_centralities(net_path,networks,FIGURE_PATH,FEATURE_PATH,FEATURE_FILE,percentNodes,measures)
+		plot_diff_centralities(net_path,networks,figurePath,featurePath,FEATURE_FILE,percentNodes,measures)
 
 	elif args.makejs:
 		print "\nMaking node and edge file in .js format for following ecozones with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
 		for n in networks:
 			for t in TREATMENTS:
-				make_js_files(net_path,FOLDER_NEW_NETWORKS,n,t,FEATURE_PATH,FEATURE_FILE,edgetype)
+				make_js_files(net_path,folderNewPath,n,t,featurePath,FEATURE_FILE,edgetype)
 
 	elif args.bcplot:
 		edgetype = 'pos'
@@ -222,7 +221,7 @@ def main(*argv):
 		bcMinValue = float(args.bcmin)
 		print "\nPlotting different features of high betweenness centrality OTUs in the following networks with "+edgetype+" type of edges:"
 		print ", ".join(networks), '\n'
-		keystone_quantitative_feature_plot(net_path,networks,FIGURE_PATH,FEATURE_PATH, FEATURE_FILE, BC_FEATURES, percentNodes,bcMinValue)
+		keystone_quantitative_feature_plot(net_path,networks,figurePath,featurePath, FEATURE_FILE, BC_FEATURES, percentNodes,bcMinValue)
 
 
 	elif args.simulate:
@@ -258,7 +257,7 @@ def main(*argv):
 		print "and plotting "+str(fraction)+" fraction of nodes "+plot_by+" and with following measures:"
 		print ", ".join([m.__name__ for m in measures])
 		print "\n"
-		plot_multiple(net_path, networks, measures, plot_by, fraction, FIGURE_PATH, figureName, edgetype, add_random, add_scalefree, max_y)
+		plot_multiple(net_path, networks, measures, plot_by, fraction, figurePath, figureName, edgetype, add_random, add_scalefree, max_y)
 	
 if __name__ == "__main__":
 	main(*sys.argv[1:])
