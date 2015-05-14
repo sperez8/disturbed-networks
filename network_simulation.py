@@ -61,8 +61,8 @@ TITLE_FONT = 20
 
 OM_COLORS = {"All":"black",
 			"Mod1":"#01665e",
-			"Mod2":"#80cdc1",
-			"Mod3":"#c7eae5"}
+			"Mod2":"#35978f",
+			"Mod3":"#80cdc1"}
 
 STRUCTURE_METRICS = [nm.number_of_nodes, 
 					nm.number_of_edges,
@@ -81,9 +81,10 @@ STRUCTURE_METRICS = [nm.number_of_nodes,
 					nm.correlation_of_degree_and_betweenness_centrality,
 					]
 
-INPUT_METRICS = [nm.richness,
-				nm.shannon_diversity,
-				]
+INPUT_METRICS = []
+				# nm.richness,
+				# nm.shannon_diversity,
+				# ]
 OTU_METRICS = [#nm.correlation_of_degree_and_depth,
 			#	nm.correlation_of_edge_depth,
 			#	nm.compute_modularity_horizon,
@@ -107,11 +108,12 @@ MODULE_METRICS = [nm.number_of_nodes,
 					nm.correlation_of_degree_and_betweenness_centrality,
 					]
 
-MODULE_OTU_METRICS = [nm.correlation_of_degree_and_depth,
-					nm.correlation_of_edge_depth,
+MODULE_OTU_METRICS = []
+					# nm.correlation_of_degree_and_depth,
+					# nm.correlation_of_edge_depth,
 					#FIX MEEE
 					#nm.avg_depth,
-					]
+					#]
 
 
 
@@ -120,15 +122,15 @@ def get_graph(nodeFile, edgeFile,edgetype):
 	G = import_graph(nodeFile,edgeFile,edgetype,FILTER_NON_OTUS)
 	return G
 
-def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LC=False):
+def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LCC=False):
 	'''makes multiple graphs from names of networks and a file path'''
 	graphs = {}
 	for netName in networks:
 		nodeFile = os.path.join(path,netName+'_nodes.txt')
 		edgeFile = os.path.join(path,netName+'_edges.txt')
 		G = get_graph(nodeFile,edgeFile,edgetype)
-		if LC:
-			G = list(nx.connected_component_subgraphs(G))[0]
+		if LCC:
+			G = nm.get_LCC(G)
 			print "keeping only connected component"
 		graphs[netName] = G
 		print 'Made the networkx graph {0} with N = {1}, E = {2}.'.format(netName,G.number_of_nodes(),G.number_of_edges())
@@ -138,16 +140,16 @@ def get_multiple_graphs(networks, path, edgetype, add_random, add_scalefree, LC=
 			M = nx.number_of_edges(G)
 			N = nx.number_of_nodes(G)
 			H = nx.gnm_random_graph(N,M,seed=RANDSEED)
-			if LC:
-				H = list(nx.connected_component_subgraphs())[0]
+			if LCC:
+				H = nm.get_LCC(H)
 			graphs[RAND_NAME+netName] = H
 		if add_scalefree:
 			N = nx.number_of_nodes(G)
 			H = nx.scale_free_graph(N,seed=RANDSEED)
 			UH = H.to_undirected()
 			UH = nx.Graph(UH)
-			if LC:
-				UH = list(nx.connected_component_subgraphs(UH))[0]			
+			if LCC:
+				UH = nm.get_LCC(UH)		
 			graphs[SCALE_NAME+netName] = UH
 	return graphs
 
@@ -1099,11 +1101,11 @@ def module_structure(net_path, networkNames, filePath, edgetype, inputFolder, in
 	networks,treatments = get_network_fullnames(networkNames)
 	print networks, treatments
 	graphs = get_multiple_graphs(networks,net_path,edgetype, False, False)
-	otuTable = {}
+	#otuTable = {}
 	modules = {}
 	number_modules = {}
 	for n in networks:
-		otuTable[n] = np.loadtxt(os.path.join(inputFolder,n.replace('BAC_','')+inputFileEnd), dtype='S1000')
+		#otuTable[n] = np.loadtxt(os.path.join(inputFolder,n.replace('BAC_','')+inputFileEnd), dtype='S1000')
 		mods = nm.get_module_graphs(graphs[n],factor=factor)
 		modules[n] = mods
 		number_modules[n] = len(mods)
@@ -1160,8 +1162,9 @@ def network_structure(net_path, networkNames, filePath, edgetype, inputFolder, i
 	graphs = get_multiple_graphs(networks,net_path,edgetype, False, False)
 	#sys.exit()
 	otuTable = {}
-	for n in networks:
-		otuTable[n] = np.loadtxt(os.path.join(inputFolder,n.replace('BAC_','')+inputFileEnd), dtype='S1000')
+	if INPUT_METRICS:
+		for n in networks:
+			otuTable[n] = np.loadtxt(os.path.join(inputFolder,n.replace('BAC_','')+inputFileEnd), dtype='S1000')
 
 	if treatments != []:
 		table = np.zeros(shape=(len(INPUT_METRICS)+len(STRUCTURE_METRICS)+len(OTU_METRICS)+2, len(networkNames)*len(treatments)+1), dtype='S1000')
@@ -1204,7 +1207,7 @@ def network_structure(net_path, networkNames, filePath, edgetype, inputFolder, i
 def plot_multiple(net_path, networkNames, measures, plotby, fraction, figurePath, figureName, edgetype, add_random, add_scalefree, max_y):
 
 	networks,treatments = get_network_fullnames(networkNames)
-	graphs = get_multiple_graphs(networks,net_path,edgetype, add_random, add_scalefree, LC=True)
+	graphs = get_multiple_graphs(networks,net_path,edgetype, add_random, add_scalefree, LCC=True)
 	data = {}
 	for netName,G in graphs.iteritems():
 		print 'Running simulation on {0}.'.format(netName)
@@ -1214,7 +1217,7 @@ def plot_multiple(net_path, networkNames, measures, plotby, fraction, figurePath
 			targ_lc_sizes, targ_sc_sizes = target_attack(G, m, fraction)
 			data[netName][m.__name__] = (targ_lc_sizes, targ_sc_sizes)
 	networkNamesPlot = networkNames.keys()
-	title = 'Robustness simulation on LC of networks {0} with {1} type of edges'.format(','.join([n.replace('BAC_','') for n in networkNamesPlot]), edgetype)
+	title = 'Robustness simulation on LCC of networks {0} with {1} type of edges'.format(','.join([n.replace('BAC_','') for n in networkNamesPlot]), edgetype)
 	if add_random:
 		networkNamesPlot.extend([RAND_NAME+n for n in networkNames.keys()])
 	if add_scalefree:
@@ -1231,7 +1234,7 @@ def random_attack(G,fraction):
 	as nodes are removed randomly'''
 	lc_sizes = [] #relative size of big component
 	sc_sizes = [] #avg size of smaller components
-	startSize = len(list(nx.connected_components(G))[0])
+	startSize = len(nm.get_components(G)[0])
 	lc_sizes.append(1)
 	sc_sizes.append(1)
 	H = G.copy()
@@ -1243,7 +1246,7 @@ def random_attack(G,fraction):
 
 	for n in nodes[:removal]:
 		H.remove_node(n)
-		components = list(nx.connected_components(H))
+		components = nm.get_components(H)
 		lc_sizes.append(len(components[0])/float(startSize)) #measure the relative size change
 		if len(components)>1:
 			sc_sizes.append(np.mean([len(c) for c in components[1:]]))
@@ -1260,7 +1263,7 @@ def target_attack(G, measure,fraction):
 	'''
 	lc_sizes = [] #relative size of big component
 	sc_sizes = [] #avg size of smaller components
-	startSize = len(list(nx.connected_components(G))[0])
+	startSize = len(nm.get_components(G)[0])
 	lc_sizes.append(1)
 	sc_sizes.append(1)
 	H = G.copy()
@@ -1273,15 +1276,13 @@ def target_attack(G, measure,fraction):
 
 	for n in zip(*values)[0][:removal]:
 		H.remove_node(n)
-		components = list(nx.connected_components(H))
+		components = nm.get_components(H)
 		lc_sizes.append(len(components[0])/float(startSize))  #measure the relative size change
 		if len(components)>1:
 			sc_sizes.append(np.mean([len(c) for c in components[1:]]))
 		else:
 			sc_sizes.append(1.0)
 	return lc_sizes,sc_sizes
-
-
 
 def plot_robustness(data,filename):
 	'''plots the simulations'''
@@ -1438,9 +1439,9 @@ def multi_plot_robustness_by_measure(multidata,figurePath,figureFile,rowLabels,t
 	colors = {treatment: OM_COLORS[treatment] for i,treatment in enumerate(treatments)}
 	#print netNames, measures, len(rowLabels),len(colLabels), len(axes), colLabels*len(rowLabels)
 
-	vulnerability = np.zeros(shape=(len(treatments)+1,len(measures)+1), dtype='S1000')
-	vulnerability[1:,0]=np.array(treatments)
-	vulnerability[0,1:]=np.array([m.replace('_',' ').capitalize() for m in measures])
+	robustnessTable = np.zeros(shape=(len(treatments)+1,len(measures)+1), dtype='S1000')
+	robustnessTable[1:,0]=np.array(treatments)
+	robustnessTable[0,1:]=np.array([m.replace('_',' ').capitalize() for m in measures])
 
 
 	iterable = []
@@ -1464,7 +1465,8 @@ def multi_plot_robustness_by_measure(multidata,figurePath,figureFile,rowLabels,t
 	max_yvalue = 1
 	i,j=0,0
 	for ax,net,measure in iterable:
-		j+=1
+		#indices for robustness factor table
+		j+=1 
 		i=0
 		for t in treatments:
 			lc_values = multidata[net+'_'+t][measure][0]
@@ -1495,32 +1497,24 @@ def multi_plot_robustness_by_measure(multidata,figurePath,figureFile,rowLabels,t
 					color=colors[t],
 					linestyle='--',linewidth=2)
 
-			#Output robustness and vulnerability
-			# i+=1
-			# lc_values.pop(0) #remove '1' added for plotting purposes
-			# x = 0
-			# for k,l in enumerate(lc_values):
-			# 	if l<=0.5:
-			# 		x = k
-			# 		break
+			#Output robustness
+			i+=1
+			lc_values.pop(0) #remove '1' added for plotting purposes
+			x = 0
+			for k,l in enumerate(lc_values):
+				if l<=0.5:
+					x = k
+					break
 
 			#print lc_values
 			#print x
 
-			#R = np.mean(lc_values)
-			#vulnerability[i,j]=str(round(0.5-R,3))
-			#vulnerability[i,j]=str(round(float(x)/len(lc_values),2))
+			robustnessTable[i,j]=str(round(float(x)/len(lc_values),2))
 
 
 		ax.locator_params(nbins=5)
 		ax.tick_params(axis='both', which='major', labelsize=8)
 		ax.tick_params(axis='both', which='minor', labelsize=8)
-		# if rowLabels.index(net)!=0 and measures.index(measure)!=0:
-		# 	ax.tick_params(axis='both', which='major', labelsize=0)
-		# 	ax.tick_params(axis='both', which='minor', labelsize=0)
-		# else:
-		# 	ax.tick_params(axis='both', which='major', labelsize=8)
-		# 	ax.tick_params(axis='both', which='minor', labelsize=8)
 		if measure not in measure_label_done:
 			ax.set_title(measure.replace('numpy','').replace('_',' ').capitalize())
 			measure_label_done.append(measure)
@@ -1535,10 +1529,10 @@ def multi_plot_robustness_by_measure(multidata,figurePath,figureFile,rowLabels,t
 			ax.set_ylim(0,1)
 
 
-	# #save vulnerability in a table
-	# f = open(os.path.join(net_path,figurePath,"vulnerability_by_measure_{0}.txt".format(net)),'w')
-	# np.savetxt(f, vulnerability, delimiter="\t", fmt='%s')
-	# f.close()
+	#save robustnessTable in a table
+	f = open(os.path.join(net_path,figurePath,"robustness_by_measure_{0}.txt".format(net)),'w')
+	np.savetxt(f, robustnessTable, delimiter="\t", fmt='%s')
+	f.close()
 
 	if len(rowLabels)==1:
 		for ax in axes:

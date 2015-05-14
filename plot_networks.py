@@ -242,7 +242,9 @@ def main(*argv):
 		else:
 			add_random = False
 		max_y = args.showcomponents
-		if max_y:
+		if max_y.lower() == 'none':
+			max_y == None
+		else:
 			max_y = float(max_y)
 
 		fraction = float(args.fraction)

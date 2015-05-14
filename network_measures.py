@@ -33,21 +33,21 @@ def number_of_edges(G):
 	return G.number_of_edges()
 
 def number_of_nodes_of_largest_connected_component(G):
-    return nx.connected_component_subgraphs(G)[0].number_of_nodes()
+    return len(get_components(G)[0])
 
 def number_of_edges_of_largest_connected_component(G):
-    return nx.connected_component_subgraphs(G)[0].number_of_edges()
+    return get_LCC(G).number_of_edges()
 
 def number_of_components(G):
     return nx.number_connected_components(G)
 
 def size_of_big_components(G):
-    cc = sorted(nx.connected_components(G), key = len, reverse=True)
+    cc = get_components(G)
     sizes = [str(len(c)) for c in cc if len(c) > 3]
     return ','.join(sizes)
 
 def in_largest_connected_component(G):
-    LCC = nx.connected_component_subgraphs(G)[0].nodes()
+    LCC = get_components(G)[0]
     members = {n:(1 if n in LCC else 0) for n in G.nodes()}
     return members
 
@@ -73,11 +73,11 @@ def degree_assortativity(G):
     return round(nx.degree_assortativity_coefficient(G), DECIMALS)
 
 def diameter_of_largest_connected_component(G):
-    H = nx.connected_component_subgraphs(G)[0]
+    H = get_LCC(G)
     return nx.diameter(H)
 
 def average_path_on_largest_connected_component(G):
-    H = nx.connected_component_subgraphs(G)[0]
+    H = get_LCC(G)
     return round(nx.average_shortest_path_length(H), DECIMALS)
 
 def correlation_of_degree_and_betweenness_centrality(G):
@@ -94,6 +94,22 @@ def correlation_of_degree_and_betweenness_centrality(G):
 
 def format_correlation(avg,std):
     return "{0} ({1})".format(round(avg,DECIMALS), round(std,5))
+
+
+def get_components(G):
+    '''gets connected components, sorts by size and returns a list of lists'''
+    return sorted(nx.connected_components(G), key = len, reverse=True)
+
+def get_LCC(G):
+    '''gets connected subgraphs and returns LCC as a networkx graph'''
+    LCC = None
+    Ntemp = 0
+    for graph in nx.connected_component_subgraphs(G):
+        N = graph.number_of_nodes()
+        if N > Ntemp:
+            LCC = graph
+            Ntemp = N
+    return LCC
 
 
 ### Ecological measures
@@ -216,18 +232,6 @@ def main(*argv):
 
     return G
 
-def measure_whole(G):
-    '''measure all interesting global network measures'''
-    measures = {}
-
-    measures['components'] = [len(x) for x in nx.connected_components(G)]
-    measures['d'] =  list(G.degree().values())
-    measures['bc'] =  list(nx.betweenness_centrality(G).values())
-    measures['cc'] =  list(nx.closeness_centrality(G).values())
-    measures['clustering'] =  list(nx.clustering(G).values())
-    
-
-    return measures
 
 def compute_modularity_horizon(G,featureTable,modules = None):
     feature = SOILHORIZON_FEAT_NAME
@@ -397,24 +401,9 @@ def get_modules(G,factor=FACTOR):
 
     return nonmergeable #return modules only, ie. not all nodes are returned.
 
-def measure_component(G):
-    '''measure all interesting global network measures'''
-    measuresC = {}
-
-    components = nx.connected_component_subgraphs(G)
-    for i,c in enumerate(components):
-        measuresC[i] = {}
-        measuresC[i]['d'] = list(c.degree().values())
-        measuresC[i]['bc'] =  list(nx.betweenness_centrality(c).values())
-        measuresC[i]['cc'] =  list(nx.closeness_centrality(c).values())
-        measuresC[i]['clustering'] =  list(nx.clustering(c).values())
-    return measuresC
-
 if __name__ == "__main__":
     '''testing purposes'''
     #G = main(*sys.argv[1:])
-    #measures = measure_whole(G)
-    #measures.update(measure_component(G))
 
     #to test modularity
     # G=nx.karate_club_graph()

@@ -41,13 +41,17 @@ def import_graph(nodeFile, edgeFile, edgetype, filterNonOtus, filterEdges = True
             G.node[n][p] = v[i]
 
     for i,e in enumerate(zip(sources, targets)):
+        s,t = e[0],e[1]
+        if filterEdges:
+            if s not in nodes or t not in nodes:
+                continue
         if edgetype == 'pos' and 'mutualExclusion' in edgeProperties['interactionType'][i]:
-            G.remove_edge(e[0],e[1])
+            G.remove_edge(s,t)
         elif edgetype == 'neg' and 'copresence' in edgeProperties['interactionType'][i]:
-            G.remove_edge(e[0],e[1])
-        elif (filterEdges and e[0] in nodes and e[1] in nodes) or (not filterEdges):
+            G.remove_edge(s,t)
+        elif (filterEdges and s in nodes and t in nodes) or (not filterEdges):
             for p,v in edgeProperties.iteritems():
-                G[e[0]][e[1]][p] = v[i]
+                G[s][t][p] = v[i]
 
     if filterNonOtus:
         for node in G.nodes():
