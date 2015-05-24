@@ -16,6 +16,7 @@ if platform.system() == 'Windows':
 else:
 	PATH = '/Users/sperez/Desktop/LTSPnetworks'
 
+print PATH
 FOLDER = 'by_treatment'
 WHOLE_FOLDER = 'by_zone'
 

@@ -54,15 +54,15 @@ SMALL_FIG_HEIGHT = 5
 
 TITLE_FONT = 20
 
-# OM_COLORS = {"OM0":"#238b45",
-# 			"OM1":"#fd8d3c",
-# 			"OM2":"#e31a1c",
-# 			"OM3":"#800026"}
+OM_COLORS = {"OM0":"#238b45",
+			"OM1":"#fd8d3c",
+			"OM2":"#e31a1c",
+			"OM3":"#800026"}
 
-OM_COLORS = {"All":"black",
-			"Mod1":"#01665e",
-			"Mod2":"#35978f",
-			"Mod3":"#80cdc1"}
+# OM_COLORS = {"All":"black",
+# 			"Mod1":"#01665e",
+# 			"Mod2":"#35978f",
+# 			"Mod3":"#80cdc1"}
 
 STRUCTURE_METRICS = [nm.number_of_nodes, 
 					nm.number_of_edges,
@@ -314,6 +314,7 @@ def plot_degree_distribution_per_treatment(net_path, networkNames, figurePath, p
 			else:
 				iterable.append((axes[j],r,c))
 
+	dumpfile = open('\Users\Sarah\Desktop\LTSPnetworks\dumpfit.txt','w')
 	colors = {treatment: OM_COLORS[treatment] for i,treatment in enumerate(treatments)}
 	for ax,location,t in iterable:
 		G = graphs[location+'_'+t]
@@ -339,18 +340,22 @@ def plot_degree_distribution_per_treatment(net_path, networkNames, figurePath, p
 		data = degrees
 		if max(degrees)>2:
 			fit = powerlaw.Fit(data,discrete=True,xmin=1)
-			fit.plot_pdf(ax=ax,color=colors[t])
-			print location, t
-			print 's',fit.power_law.sigma, fit.power_law.alpha
-			# fit_exp = fit.stretched_exponential
-			# beta,Lambda = fit.stretched_exponential.beta, fit.stretched_exponential.Lambda
-			# fit.stretched_exponential.plot_pdf(ax=ax, color=colors[t],linestyle='--',linewidth=2)
-			# print 'beta,lambda', beta, Lambda
+			fit.plot_pdf(ax=ax,color=colors[t]) #plot probability distribution function
+			dumpfile.write(location+','+t)
+			dumpfile.write('\n')
+			#print ','.join(['s',str(fit.power_law.sigma), str(fit.power_law.alpha)])
+			fit_exp = fit.stretched_exponential
+			beta,Lambda = fit.stretched_exponential.beta, fit.stretched_exponential.Lambda
+			fit.stretched_exponential.plot_pdf(ax=ax, color=colors[t],linestyle='--',linewidth=2)
+			#print 'beta,lambda', beta, Lambda
 			for dist in ['exponential','power_law','lognormal']:	#,'truncated_power_law']:
-				R, p = fit.distribution_compare(dist,'stretched_exponential')
+				R, p = fit.distribution_compare(dist,'stretched_exponential',nested=None)
 				print dist, R, p
-
-			#print fit_exp.KS()
+			dumpfile.write('beta = '+str(beta)+', lambda = '+str(Lambda))
+			dumpfile.write('\n')
+			dumpfile.write('KS = '+str(fit_exp.KS())+',  a2 = '+str(fit_exp.Asquare))
+			dumpfile.write('\n')
+			dumpfile.write('\n')
 
 			#print fit_exp.sigma
 			i,j = ax.get_ylim()
