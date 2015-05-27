@@ -344,7 +344,7 @@ def plot_degree_distribution_per_treatment(net_path, networkNames, figurePath, p
 			print 's',fit.power_law.sigma, fit.power_law.alpha
 			# fit_exp = fit.stretched_exponential
 			# beta,Lambda = fit.stretched_exponential.beta, fit.stretched_exponential.Lambda
-			# fit.stretched_exponential.plot_pdf(ax=ax, color=colors[t],linestyle='--',linewidth=2)
+			fit.stretched_exponential.plot_pdf(ax=ax, color=colors[t],linestyle='--',linewidth=2)
 			# print 'beta,lambda', beta, Lambda
 			for dist in ['exponential','power_law','lognormal']:	#,'truncated_power_law']:
 				R, p = fit.distribution_compare(dist,'stretched_exponential')
